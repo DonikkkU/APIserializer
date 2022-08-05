@@ -1,77 +1,50 @@
-from django.shortcuts import render
-from django.http import JsonResponse
 from .models import *
+from .serializers import *
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework import status
+
+@api_view(['GET', 'POST'])
+def projects(request):
+    if request.method == 'GET':
+        projects = Project.objects.all()
+        serializer = ProjectSerializer(projects, many=True)
+        print(serializer.data)
+        return Response(serializer.data)
+    elif request.method == 'POST':
+        serializer = ProjectSerializer(data=request.data)
+        print(request.data)
+        # print(serializer.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
 
-def get_projects(requests):
-    data = Project.objects.all().values()
-    print(data[:2])
-    print(type(data))
-    print(list(data)[:2])
-    response = {"projects": list(data)}
-    return JsonResponse(response)
 
-def get_project(requests, id):
-    data = Project.objects.get(id=id)
-    print(data)
-    print('=========')
-    print(type(data))
-    print('=========')
-    data = data.__dict__
-    print(data)
-    data.pop('_state', 'not found')
-    response = data
-    return JsonResponse(response)
-
-def insert_tag(request, name):
+@api_view(['PUT', 'GET', 'DELETE'])
+def project_detail(request, pk):
     try:
-        tag = Tag.objects.create(name=name)
-    except Exception as error:
-        data = {"ok": False, "error": str(error)}
-    else:
-        data = tag.__dict__
-        data.pop('_state')
-        data["ok"] = True
-        data["error"] = ""
-    return JsonResponse(data)
+        project = Project.objects.get(pk=pk)
+    except Project.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'GET':
+        serializer = ProjectSerializer(project)
+        return Response(serializer.data)
+    elif request.method == 'PUT':
+        serializer = ProjectSerializer(project, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    elif request.method == 'DELETE':
+        project.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-
-def insert_project(request):
-    title = request.headers['title']
-    definition = request.headers['definition']
-    user = request.headers['user']
-    try:
-        project = Project.objects.create(title=title,
-                                         description=definition,
-                                         user_id=user
-                                         )
-    except Exception as error:
-        data = {
-            "error": str(error)
-        }
-        return JsonResponse(data)
-
-    data = project.__dict__
-    data.pop('_state', '')
-    data.pop('image', '')  # rasmni jsonga o'girib bo'lmaydi
-    return JsonResponse(data)
-
-def delete_project(request, pk):
-    project = Project.objects.get(id=pk)
-    project.delete()
-    return JsonResponse({"message": 'Project is deleted'})
-
-
-def edit_project(request, pk):
-    try:
-        project = Project.objects.get(id=pk)
-    except Exception as error:
-        return JsonResponse({"error": str(error)})
-
-    project.title = request.headers["title"]
-    project.description = request.headers["definition"]
-    project.save()
-    data = project.__dict__
-    data.pop('_state')
-    data.pop('image')
-    return JsonResponse(data)
+@api_view(['GET'])
+def skill(request):
+    if request.method == 'GET':
+        skill = Skill.objects.all()
+        serializer = SkillSerializer(skill, many=True)
+        return Response(serializer.data)
